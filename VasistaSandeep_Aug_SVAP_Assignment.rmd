@@ -1,0 +1,165 @@
+---
+title: "Untitled"
+author: "Sandeep V"
+date: "September 25, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(rvest)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+## Frame
+
+1st part - Find the State with the highest quantity sales.
+2nd part - Predict the daily price for the next 30 days for that state.
+
+## Acquire Data
+Getting data from NHRDF
+
+
+```{r}
+
+
+getwd()
+page <- read_html("C:/Users/vasistas/Documents/From_Mydownloads/PGP-BDA/In_class/2nd_Residency/SVAP_Amit/Assignment/HTML-3/DailyWiseMarketArrivals.html")
+table_node <- html_node(page,"#dnn_ctr966_DailyWiseMarketArrivals_GridView1")
+table<- html_table(table_node,fill  <-  TRUE)
+str(table)
+df <- table
+df
+tail(df)
+```
+
+#Piping/currying
+
+#```{r}
+#df  <- read_html("C:/Users/vasistas/Documents/From_Mydownloads/PGP-BDA/In_class/2nd_Residency/SVAP_Amit/Assignment/HTML-3/DailyWiseMarketArrivals.html")
+#html_node(page,"#dnn_ctr966_DailyWiseMarketArrivals_GridView1")
+#html_table()
+##```
+
+##Refine
+
+- Remove unwanted data
+- Format data types
+- Missing data
+
+```{r}
+dim(df)
+column_name <- c('date','market','quantity','pricemin','pricemax','pricemod')
+colnames(df) <- column_name
+str(df)
+
+df$pricemax <- as.numeric(df$pricemax)
+df$pricemin <- as.numeric(df$pricemin)
+df$pricemod <- as.numeric(df$pricemod)
+df$date <- as.Date(df$date,"%d/%B/%Y")
+
+
+str(df)
+head(df)
+tail(df)
+df
+```
+
+#Removing last row 
+
+```{r}
+
+dfnototal <- df[-nrow(df),]
+
+tail(dfnototal)
+```
+###Separating cities with states
+```{r}
+library(dplyr)
+tail(df)
+tail(dfnototal)
+df1=dfnototal%>%dplyr::mutate(market1=market)%>%separate(market1,c("city","state"),sep="\\(",extra="drop",fill="right")
+#Removing the ")" at the end of each state
+df1$state=gsub(')', '', df1$state)
+str(df1)
+df1
+
+```
+##Data cleaning
+-Correcting typos, NAs for states
+
+
+```{r}
+df1$state[df1$city=='BANGALORE'] <- 'KNT'
+df1$state[df1$city=='CHENNAI'] <- 'TN'
+df1$state[df1$city=='CHANDIGARH'] <- 'PB'
+df1$state[df1$city=='BHOPAL'] <- 'MP'
+df1$state[df1$city=='HYDERABAD'] <- 'TELANGANA'
+df1$state[df1$city=='JAIPUR'] <- 'RAJ'
+df1$state[df1$city=='KOLKATA'] <- 'WB'
+df1$state[df1$city=='LUCKNOW'] <- 'UP'
+df1$state[df1$city=='JAMMU'] <- 'JK'
+df1$state[df1$city=='DELHI'] <- 'DELHI'
+df1$state[df1$city=='MUMBAI'] <- 'MS'
+df1$state[df1$city=='NAGPUR'] <- 'MS'
+df1$state[df1$city=='PATNA'] <- 'BIHAR'
+df1$state[df1$state=='RJ'] <- 'RAJ'
+df1$state[df1$state=='CHATT'] <- 'CHGARH'
+df1$state[df1$state=='Telangana'] <- 'TELANGANA'
+df1$state[df1$city=='BULANDSHAHR']='UP'
+df1$state[df1$city=='GUWAHATI']='ASSAM'
+df1$state[df1$city=='SHAHJAHANPUR']='UP'
+df1
+head(df1)
+tail(df1)
+```
+
+
+#Total Quantity grouping by state
+```{r}
+df2=df1%>%
+  group_by(state)%>%
+  summarise(TotalQty=sum(quantity))%>%
+  arrange(desc(TotalQty))%>%head(15)
+df2
+
+```
+
+##1st part - Find the State with the highest quantity sales.
+ - Total Quantity grouping by state clearly states Maharastra (MS) is state with highest quantity sales of38676311
+ 
+ 
+## 
+```{r}
+dfmaha <- df1%>%filter(state==c("MS"))%>%
+  select(date,pricemod)
+str(dfmaha)
+colnames(dfmaha) <- c('ds','y')
+str(dfmaha)
+library(StanHeaders)
+library(prophet)
+predictor <- prophet(dfmaha)
+predictor_future <- make_future_dataframe(predictor,periods <- 365)
+forecast <- predict(predictor,predictor_future)
+forecast30days <- forecast%>%filter(ds > "2017-09-25" & ds <"2017-10-25")
+Next30daysforMSwillbe <- forecast30days[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')]
+(Next30daysforMSwillbe)
+```
+
+
+##2nd part - Predict the daily price for the next 30 days for that state.
+
+Next30daysforMSwillbe table provides the data for predicting 30 days forecast of Maharastra state from 25 September to 24 October

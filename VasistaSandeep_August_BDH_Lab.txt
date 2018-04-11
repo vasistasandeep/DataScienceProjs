@@ -1,0 +1,25 @@
+Commands:
+
+Inputs:
+
+hdfs dfs vi nyse.txt
+hdfs dfs -mkdir /user/vasistasandeep90_gmail/nyse
+hdfs dfs nyse.txt -put /user/vasistasandeep90_gmail/nyse
+
+hive commands:
+
+use vasi_test;
+show tables;
+create table nyse_stock(stockexchange string,symbol string,date string,openDayPrice double,highDayPrice double,lowDayPrice double,closeDayPrice double,volume int,adjustedClosePri
+ce double) row format delimited fields terminated by ',' stored as textfile;
+LOAD data inpath '/user/vasistasandeep90_gmail/nyse' into table nyse_stock;
+create table nyse_stock_datePartition(stockexchange string,symbol string,openDayPrice double,highDayPrice double,lowDayPrice double,closeDayPrice double,volume int,adjustedCloseP
+rice double) partitioned by (date string) row format delimited fields terminated by ',' stored as orcfile;
+from nyse_stock insert into table nyse_stock_datePartition partition(date) select stockexchange,symbol,date,openDayPrice,highDayPrice,lowDayPrice,closeDayPrice,volume,adjustedClo
+sePrice where openDayPrice>68 and highDayPrice<70;
+
+Outputs:
+
+select * from nyse_stock where openDayPrice>68 and highDayPrice<70;
+select * from nyse_stock_datePartition;
+Output ORC files: user/  hive/  warehouse/  vasi_test.db/  nyse_stock_datepartition
